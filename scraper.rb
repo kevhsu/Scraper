@@ -17,7 +17,7 @@ def yahoo_data(ticker)
   text = a.page.search('td.yfnc_modtitlew1')
   #debugger
   address = ""
-  first_add = nil
+  first_add = 1
   phone_num = ""
   fax_num = ""
   website = ""
@@ -32,10 +32,11 @@ def yahoo_data(ticker)
         website = child.next.text.strip
       else
         if(first_add)
-          first_add = 1
-          address.concat(", ")
+          address.concat(st)
+          first_add = nil
+        else
+          address.concat(", " + st)
         end
-        address.concat(st)
       end
     end
   end
@@ -73,6 +74,28 @@ def yahoo_data(ticker)
   url = "http://finance.yahoo.com/q/is?s=" + ticker + "+Income+Statement&annual"
   a.get(url)
 
+  period_end = ""
+  revenue = ""
+  last_period_end = ""
+  last_revenue = ""
+  date = a.page.search("//tr[@class='yfnc_modtitle1']/th")
+  rev = a.page.search("//tr/td[@align='right']/strong")
+  if(date.children[0])
+    period_end = date.children[0].text.strip
+    revenue = rev.children[0].text.strip
+  end
+  if(date.children[1])
+    last_period_end = date.children[1].text.strip
+    last_revenue = rev.children[1].text.strip
+  end
+
+  # period_end = date.children[0].text.strip
+  #revenue = rev.children[0].text.strip
+  puts "period ending: " + period_end
+  puts "revenue: " + revenue
+
+  puts "last period: " + last_period_end
+  puts "last reveneue: " + last_revenue
   total_size = index_mem.size + sector.size + industry.size + employee_num.size + address.size + phone_num.size + fax_num.size + website.size
   if(total_size < 12)
     f = File.open("failures.txt", "a+")
@@ -82,40 +105,40 @@ def yahoo_data(ticker)
   else
     [1, 1]
   end
-  end
+end
 
-  def call_letters(letter)
-    a = Mechanize.new { |agent|
-      agent.user_agent_alias = 'Mac Safari'
-    }
-    success = [0, 0]
-    url = "http://en.wikipedia.org/wiki/Companies_listed_on_the_New_York_Stock_Exchange_(" + letter + ")"
-    a.get(url)
-    ret = [0,0]
-    rows = a.page.search("//table[@style='background:transparent;']//tr")
-    puts rows[2].children[3]
-    rows.each do |row|
-      stock_sym = row.children[3].text.strip
-      if (stock_sym.index("Symbol"))
-        stock_sym = "invalid"
-      else
-        puts stock_sym
-        ret = yahoo_data(stock_sym)
-        success[0] += ret[0]
-        success[1] += ret[1]
-        puts("")
-      end
+def call_letters(letter)
+  a = Mechanize.new { |agent|
+    agent.user_agent_alias = 'Mac Safari'
+  }
+  success = [0, 0]
+  url = "http://en.wikipedia.org/wiki/Companies_listed_on_the_New_York_Stock_Exchange_(" + letter + ")"
+  a.get(url)
+  ret = [0,0]
+  rows = a.page.search("//table[@style='background:transparent;']//tr")
+  puts rows[2].children[3]
+  rows.each do |row|
+    stock_sym = row.children[3].text.strip
+    if (stock_sym.index("Symbol"))
+      stock_sym = "invalid"
+    else
+      puts stock_sym
+      ret = yahoo_data(stock_sym)
+      success[0] += ret[0]
+      success[1] += ret[1]
+      puts("")
     end
-    success
   end
-  f = File.new("failures.txt", "w+")
-  f.syswrite("these failed: \n")
-  f.close()
-  find_rate = [0,0]
-  letter_rate = call_letters("0-9")
-  #"A".upto("B") {|i|
-  #  new_rate = call_letters(i)
-  #  letter_rate[0] += new_rate[0]
-  #  letter_rate[1] += new_rate[1]
- # }
-  puts letter_rate
+  success
+end
+f = File.new("failures.txt", "w+")
+f.syswrite("these failed: \n")
+f.close()
+find_rate = [0,0]
+letter_rate = call_letters("0-9")
+"A".upto("B") {|i|
+  new_rate = call_letters(i)
+  letter_rate[0] += new_rate[0]
+  letter_rate[1] += new_rate[1]
+}
+puts letter_rate
