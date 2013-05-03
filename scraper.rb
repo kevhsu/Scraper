@@ -2,10 +2,15 @@ require 'rubygems'
 require 'mechanize'
 require 'debugger'
 
+class Profile
+  attr_accessor :address, :phone_num, :fax_num, :website, :index_mem, :sector, :industry, :employee_num, :revenue, :period_end, :last_revenue, :last_period_end, :company_name
+end
+
 def yahoo_data(ticker)
   a = Mechanize.new { |agent|
     agent.user_agent_alias = 'Mac Safari'
   }
+  ret_val = Profile.new()
   #ticker = "AAPL"
   url = "http://finance.yahoo.com/q/pr?s=" + ticker + "+Profile"
   a.get(url)
@@ -16,87 +21,93 @@ def yahoo_data(ticker)
   #a.page.link_with(:text => 'Profile').click
   text = a.page.search('td.yfnc_modtitlew1')
   #debugger
-  address = ""
+  name = a.page.search('td.yfnc_modtitlew1/b')
+  ret_val.company_name = ""
+  if(name[0])
+    ret_val.company_name = name[0].text.strip
+    puts ret_val.company_name 
+  end
+  ret_val.address = ""
   first_add = 1
-  phone_num = ""
-  fax_num = ""
-  website = ""
+  ret_val.phone_num = ""
+  ret_val.fax_num = ""
+  ret_val.website = ""
   text.children.each do |child|
     if child.instance_of?(Nokogiri::XML::Text)
       st = child.to_s
       if st.index("Phone:")
-        phone_num = st.split("Phone: ").last 
+        ret_val.phone_num = st.split("Phone: ").last 
       elsif st.index("Fax:")
-        fax_num = st.split("Fax: ").last
+        ret_val.fax_num = st.split("Fax: ").last
       elsif st.index("Website")
-        website = child.next.text.strip
+        ret_val.website = child.next.text.strip
       else
         if(first_add)
-          address.concat(st)
+          ret_val.address.concat(st)
           first_add = nil
         else
-          address.concat(", " + st)
+          ret_val.address.concat(", " + st)
         end
       end
     end
   end
 
-  puts "address: " + address
-  puts "phone: " + phone_num
-  puts "fax: " + fax_num
-  puts "website: " + website
+  puts "address: " + ret_val.address
+  puts "phone: " + ret_val.phone_num
+  puts "fax: " + ret_val.fax_num
+  puts "website: " + ret_val.website
 
   titles = a.page.search("//td[@class='yfnc_modtitlew1']//td[@class='yfnc_tablehead1']")
   content = a.page.search("//td[@class='yfnc_modtitlew1']//td[@class='yfnc_tabledata1']")
-  index_mem = ""
-  sector = ""
-  industry = ""
-  employee_num = ""
+  ret_val.index_mem = ""
+  ret_val.sector = ""
+  ret_val.industry = ""
+  ret_val.employee_num = ""
   titles.zip(content).each do |title, stuff|
     st = stuff.text.strip
     ind = title.to_s
     if ind.index("Index Membership:")
-      index_mem=st
+      ret_val.index_mem=st
     elsif ind.index("Sector:")
-      sector = st
+      ret_val.sector = st
     elsif ind.index("Industry:")
-      industry = st
+      ret_val.industry = st
     elsif ind.index("Full Time Employees:")
-      employee_num = st
+      ret_val.employee_num = st
     end
   end
 
-  puts "mem: " + index_mem
-  puts "sector: " + sector
-  puts "industry: " + industry
-  puts "employee_#: " + employee_num
+  puts "index_membership: " + ret_val.index_mem
+  puts "sector: " + ret_val.sector
+  puts "industry: " + ret_val.industry
+  puts "employee_#: " + ret_val.employee_num
 
   url = "http://finance.yahoo.com/q/is?s=" + ticker + "+Income+Statement&annual"
   a.get(url)
 
-  period_end = ""
-  revenue = ""
-  last_period_end = ""
-  last_revenue = ""
+  ret_val.period_end = ""
+  ret_val.revenue = ""
+  ret_val.last_period_end = ""
+  ret_val.last_revenue = ""
   date = a.page.search("//tr[@class='yfnc_modtitle1']/th")
   rev = a.page.search("//tr/td[@align='right']/strong")
   if(date.children[0])
-    period_end = date.children[0].text.strip
-    revenue = rev.children[0].text.strip
+    ret_val.period_end = date.children[0].text.strip
+    ret_val.revenue = rev.children[0].text.strip
   end
   if(date.children[1])
-    last_period_end = date.children[1].text.strip
-    last_revenue = rev.children[1].text.strip
+    ret_val.last_period_end = date.children[1].text.strip
+    ret_val.last_revenue = rev.children[1].text.strip
   end
 
   # period_end = date.children[0].text.strip
   #revenue = rev.children[0].text.strip
-  puts "period ending: " + period_end
-  puts "revenue: " + revenue
+  puts "period ending: " + ret_val.period_end
+  puts "revenue: " + ret_val.revenue
 
-  puts "last period: " + last_period_end
-  puts "last reveneue: " + last_revenue
-  total_size = index_mem.size + sector.size + industry.size + employee_num.size + address.size + phone_num.size + fax_num.size + website.size
+  puts "last period: " + ret_val.last_period_end
+  puts "last reveneue: " + ret_val.last_revenue
+  total_size = ret_val.index_mem.size + ret_val.sector.size + ret_val.industry.size + ret_val.employee_num.size + ret_val.address.size + ret_val.phone_num.size + ret_val.fax_num.size + ret_val.website.size
   if(total_size < 12)
     f = File.open("failures.txt", "a+")
     f.syswrite(ticker + "\n")
